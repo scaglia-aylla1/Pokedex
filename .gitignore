@@ -1,0 +1,20 @@
+
+# Ambientes Virtuais do Python
+venv/
+.venv/
+env/
+
+# Arquivos de Dados e Logs
+*.sqlite
+*.db
+pokedex.db 
+*.log
+
+# Arquivos de Configurações Sensíveis
+.env
+__pycache__/
+*.pyc
+
+# IDEs e Editores
+.vscode/
+.idea/
