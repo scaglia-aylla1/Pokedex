@@ -10,10 +10,10 @@ from .config import Config
 db = SQLAlchemy()
 jwt = JWTManager()
 
-def create_app():
+def create_app(config_object=Config):
     """Cria e configura a aplicação Flask."""
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_object)
 
     # Inicializa as extensões com a aplicação Flask
     db.init_app(app)
