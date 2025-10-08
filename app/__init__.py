@@ -3,6 +3,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from .config import Config
+from flask_cors import CORS
 
 # Inicializa as extensões sem a aplicação Flask (adiamento da inicialização)
 # Isso permite configurar o Flask e as extensões em diferentes momentos,
@@ -12,8 +13,11 @@ jwt = JWTManager()
 
 def create_app(config_object=Config):
     """Cria e configura a aplicação Flask."""
+    # Dentro da sua função create_app(config_object):
+    
     app = Flask(__name__)
     app.config.from_object(config_object)
+    CORS(app, resources={r"/api/*": {"origins": "http://localhost:4200"}})
 
     # Inicializa as extensões com a aplicação Flask
     db.init_app(app)
