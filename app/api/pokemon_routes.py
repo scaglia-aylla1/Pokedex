@@ -19,7 +19,6 @@ def list_pokemons():
     
     # NOVOS FILTROS
     name_filter = request.args.get('name', default=None, type=str)
-    generation_id = request.args.get('generation', default=None, type=int)
 
     id_usuario = int(get_jwt_identity()) # Convertemos para int aqui
     
@@ -28,8 +27,7 @@ def list_pokemons():
             user_id=id_usuario, 
             limit=limit, 
             offset=offset,
-            name_filter=name_filter, 
-            generation_id=generation_id 
+            name_filter=name_filter
         )
         
         return jsonify({
@@ -51,16 +49,12 @@ def toggle_favorite(pokemon_code):
     URL: POST /api/v1/pokemon/<codigo_pokemon>/favorite
     """
     id_usuario = get_jwt_identity()
-    data = request.get_json()
     
-    if not data or not all(k in data for k in ('nome', 'imagem_uri', 'tipos')):
-        return jsonify({"msg": "Dados completos do Pokémon são necessários para favoritar."}), 400
 
     try:
         is_now_favorite = pokemon_service.toggle_favorite(
             user_id=id_usuario,
-            pokemon_code=pokemon_code,
-            pokemon_data=data
+            pokemon_code=pokemon_code
         )
 
         action = "favoritado" if is_now_favorite else "removido dos favoritos"
@@ -82,30 +76,37 @@ def toggle_battle_team(pokemon_code):
     URL: POST /api/v1/pokemon/<codigo_pokemon>/team
     """
     id_usuario = get_jwt_identity()
-    data = request.get_json()
     
-    if not data or not all(k in data for k in ('nome', 'imagem_uri', 'tipos')):
-        return jsonify({"msg": "Dados completos do Pokémon são necessários para adicionar ao time."}), 400
+    # 1. Tenta obter o JSON de forma silenciosa.
+    # Se o corpo for vazio ou houver erro de parsing, data = None.
+    data = request.get_json(silent=True)
+    
+    # 2. Garante que o service receba 'None' se não for um dicionário válido
+    pokemon_data = data if isinstance(data, dict) else None
 
     try:
+        pokemon_code_slug = pokemon_code.lower() 
+
+        # 3. Chama o Service. O Service lidará com 'pokemon_data = None'
         is_now_in_team = pokemon_service.toggle_battle_team(
             user_id=id_usuario,
-            pokemon_code=pokemon_code,
-            pokemon_data=data
+            pokemon_code=pokemon_code_slug,
+            pokemon_data=pokemon_data
         )
 
         action = "adicionado ao time" if is_now_in_team else "removido do time"
         return jsonify({
-            "msg": f"Pokémon {pokemon_code} {action} com sucesso.",
+            "msg": f"Pokémon {pokemon_code_slug} {action} com sucesso.",
             "in_battle_team": is_now_in_team
         }), 200
         
     except ValueError as e:
-        # Erro do limite de 6 ou dados incompletos
+        # Captura erros de limite ou falha na API (400)
         return jsonify({"msg": str(e)}), 400
-    except Exception:
+    except Exception as e:
+        # Captura 500. É bom imprimir o erro no console do Flask para debug.
+        print(f"Erro interno no toggle_battle_team: {e}")
         return jsonify({"msg": "Erro interno ao processar Grupo de Batalha."}), 500
-    
 
 @pokemon_bp.route('/favorites', methods=['GET'])
 @jwt_required()

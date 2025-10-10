@@ -80,7 +80,7 @@ class PokemonService:
         return pokemons_processed
 
     # Lógica de Marcar/Desmarcar favorito
-    def toggle_favorite(self, user_id: int, pokemon_code: str, pokemon_data: Dict[str, Any]) -> bool:
+    def toggle_favorite(self, user_id: int, pokemon_code: str, pokemon_data: Dict[str, Any]=None) -> bool:
         """
         Adiciona ou remove um Pokémon da lista de favoritos do usuário.
         """
@@ -101,8 +101,12 @@ class PokemonService:
         else:
             # Se não existe, cria o registro e marca como favorito
             if not pokemon_data:
-                # Se não tiver dados para criar, precisa buscar na API
-                raise ValueError("Dados do Pokémon incompletos para criação do registro.")
+                try:
+                    # IMPLEMENTAR ESTA CHAMADA NO SEU REPOSITÓRIO
+                    pokemon_data = self.pokemon_repo.get_pokemon_details_from_api(pokemon_code)
+                except Exception:
+                    # Se a busca na PokeAPI ou no cache falhar
+                    raise ValueError(f"Não foi possível obter os dados do Pokémon '{pokemon_code}' para criação.")
 
             # Garante que o TipoPokemon exista e pega seu ID (Foreign Key)
             first_type = pokemon_data['tipos'][0] # Pega o primeiro tipo para o TipoPokemon FK
@@ -121,7 +125,11 @@ class PokemonService:
             self.pokemon_repo.save(new_user_pokemon)
             return True 
 
-    def toggle_battle_team(self, user_id: int, pokemon_code: str, pokemon_data: Dict[str, Any]) -> bool:
+    from typing import Dict, Any
+
+
+
+    def toggle_battle_team(self, user_id: int, pokemon_code: str, pokemon_data: Dict[str, Any]=None) -> bool:
         """
         Adiciona ou remove um Pokémon da Equipe de Batalha do usuário,
         garantindo o limite máximo de 6 Pokémon.
@@ -129,7 +137,7 @@ class PokemonService:
         user_pokemon = self.pokemon_repo.get_pokemon_by_user_and_code(user_id, pokemon_code)
 
         if user_pokemon:
-            # Caso 1: O Pokémon já está registrado para o usuário
+            # Caso 1: O Pokémon já está registrado para o usuário (Lógica OK)
 
             if user_pokemon.grupo_batalha:
                 # Se já está no time, vamos removê-lo
@@ -154,17 +162,23 @@ class PokemonService:
             
             self.pokemon_repo.save(user_pokemon)
             return action
-        
+            
         else:
             # Caso 2: O Pokémon NÃO está registrado para o usuário (precisa ser criado)
             
-            # VERIFICAÇÃO DO LIMITE DE 6
+            # VERIFICAÇÃO DO LIMITE DE 6 (Aplica-se à criação também)
             current_count = self.pokemon_repo.get_user_battle_team_count(user_id)
             if current_count >= 6:
                 raise ValueError("A Equipe de Batalha já está completa (máximo de 6 Pokémon).")
             
+            # === CORREÇÃO: Buscando dados do Pokémon se o Front-End não enviou ===
             if not pokemon_data:
-                raise ValueError("Dados do Pokémon incompletos para adicionar ao time.")
+                try:
+                    # Chama a função do Repositório para buscar na PokeAPI
+                    pokemon_data = self.pokemon_repo.get_pokemon_details_from_api(pokemon_code)
+                except Exception:
+                    # Se falhar ao buscar na API, levanta o erro 400
+                    raise ValueError(f"Não foi possível obter os dados do Pokémon '{pokemon_code}' para adicionar ao time.")
 
             # Cria o TipoPokemon e o registro de PokemonUsuario, marcando GrupoBatalha=True
             first_type = pokemon_data['tipos'][0]
@@ -180,7 +194,7 @@ class PokemonService:
                 grupo_batalha=True
             )
             self.pokemon_repo.save(new_user_pokemon)
-            return True # Foi adicionado   
+            return True # Foi adicionado
     
     def _format_user_pokemon_list(self, pokemon_list: List[PokemonUsuarioModel]) -> List[Dict[str, Any]]:
         """

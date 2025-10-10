@@ -1,4 +1,5 @@
 
+import requests
 from app import db
 from app.models.pokemon_usuario_model import PokemonUsuarioModel
 from app.models.tipo_pokemon_model import TipoPokemonModel
@@ -68,3 +69,45 @@ class PokemonRepository:
             id_usuario=user_id,
             grupo_batalha=True
         ).all()
+    
+    @staticmethod
+    def get_pokemon_details_from_api(pokemon_code: str) -> dict:
+        """Busca os detalhes do Pokémon na PokeAPI usando seu código (slug)."""
+        
+        # 1. Tente buscar na PokeAPI
+        url = f"https://pokeapi.co/api/v2/pokemon/{pokemon_code}"
+        
+        try:
+            response = requests.get(url, timeout=5)
+            response.raise_for_status() # Lança erro para 4xx/5xx
+            data = response.json()
+            
+            # 2. Mapeie os dados para o formato esperado pela sua função save
+            return {
+                "nome": data['name'].capitalize(),
+                "imagem_uri": data['sprites']['other']['official-artwork']['front_default'],
+                "tipos": [t['type']['name'].capitalize() for t in data['types']],
+            }
+            
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 404:
+                raise ValueError(f"Pokémon '{pokemon_code}' não encontrado na PokeAPI.")
+            raise Exception(f"Erro ao buscar na PokeAPI: {e}")
+        except Exception as e:
+            raise Exception(f"Falha na comunicação com a PokeAPI: {e}")
+        
+
+    @staticmethod
+    def clear_user_battle_team(user_id: int) -> int:
+        """
+        Define 'grupo_batalha' como False para todos os Pokémon de um usuário.
+        Retorna a contagem de linhas atualizadas.
+        """
+        rows_updated = PokemonUsuarioModel.query.filter_by(
+            id_usuario=user_id,
+            grupo_batalha=True
+        ).update({PokemonUsuarioModel.grupo_batalha: False})
+        
+        # IMPORTANTE: Confirma a transação
+        db.session.commit()
+        return rows_updated
